@@ -41,9 +41,9 @@ graph TD
 ## 🚀 Core Features
 
 ### 1. WebSocket-First (Kill the Polling)
-Standard ICP architectures suffer from a "blind spot" of 2-5 seconds due to consensus block time. Aggressive polling (e.g., every 500ms) burns cycles and creates bottlenecks.
+Standard ICP architectures suffer from a "blind spot" of several seconds due to consensus block time. Aggressive polling (e.g., every 500ms) burns cycles and creates bottlenecks.
 
-**The FS-Zero Solution:** A persistent bidirectional tunnel. The Canister notifies the client of state changes in milliseconds, preventing Race Conditions and Lost Updates in multi-user environments.
+**The FS-Zero Solution:** A persistent bidirectional tunnel. The Canister notifies the client of state changes in **near-real-time (approx. 1-2 seconds)**, matching the ICP block finality. This eliminates the uncertainty of polling intervals and prevents Race Conditions or Lost Updates in multi-user environments.
 
 ### 2. Flux Gateway Integration (Infrastructure Shield)
 Direct HTTP Outcalls on ICP are computationally expensive and expose subnet IPs to potential external bans. FS-Zero leverages Flux Nodes as a decentralized shield and relay:
