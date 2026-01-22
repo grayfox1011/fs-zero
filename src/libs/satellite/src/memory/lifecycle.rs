@@ -7,6 +7,7 @@ use crate::memory::state::STATE;
 use crate::memory::utils::init_storage_heap_state;
 use crate::random::init::defer_init_random_seed;
 use crate::types::state::{HeapState, RuntimeState, State};
+use crate::ws;
 use ciborium::{from_reader, into_writer};
 use junobuild_shared::memory::upgrade::{read_post_upgrade, write_pre_upgrade};
 use junobuild_shared::segments::controllers::init_admin_controllers;
@@ -35,6 +36,9 @@ pub fn init(args: InitSatelliteArgs) {
 
     invoke_on_init_sync();
 
+    // Initialize WebSocket module
+    ws::init();
+
     invoke_on_init();
 }
 
@@ -57,6 +61,9 @@ pub fn post_upgrade() {
 
     defer_init_certified_assets();
     defer_init_random_seed();
+
+    // Reinitialize WebSocket module after upgrade
+    ws::init();
 
     invoke_on_post_upgrade_sync();
 

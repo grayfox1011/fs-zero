@@ -144,6 +144,7 @@ pub mod hooks {
     use candid::{CandidType, Deserialize};
     use junobuild_shared::types::state::UserId;
     use junobuild_storage::types::store::{Asset, AssetAssertUpload};
+    use serde::{Serialize, Serializer};
 
     /// A generic context struct used in Juno satellite hooks.
     ///
@@ -207,4 +208,71 @@ pub mod hooks {
 
     /// A type alias for the context used in the `assert_delete_asset` satellite hook.
     pub type AssertDeleteAssetContext = HookContext<Asset>;
+
+    /// WebSocket notification message sent to connected clients
+    ///
+    /// This struct represents a real-time notification that is broadcast
+    /// to WebSocket subscribers when data changes occur in the satellite.
+    ///
+    /// # Fields
+    /// - `type`: The type of notification (e.g., "doc_set", "doc_deleted", "asset_uploaded")
+    /// - `collection`: The collection where the change occurred
+    /// - `key`: The key of the affected document/asset
+    /// - `caller`: The principal that made the change
+    /// - `timestamp`: When the change occurred (nanoseconds since epoch)
+    #[derive(CandidType, Deserialize, Serialize, Clone)]
+    pub struct NotificationMessage {
+        #[serde(rename = "type")]
+        pub msg_type: String,
+        pub collection: String,
+        pub key: String,
+        pub caller: String,
+        pub timestamp: u64,
+    }
+
+    /// Create a notification message for a document set event
+    impl NotificationMessage {
+        pub fn doc_set(collection: String, key: String, caller: UserId) -> Self {
+            Self {
+                msg_type: "doc_set".to_string(),
+                collection,
+                key,
+                caller: caller.to_string(),
+                timestamp: ic_cdk::api::time(),
+            }
+        }
+
+        /// Create a notification message for a document deleted event
+        pub fn doc_deleted(collection: String, key: String, caller: UserId) -> Self {
+            Self {
+                msg_type: "doc_deleted".to_string(),
+                collection,
+                key,
+                caller: caller.to_string(),
+                timestamp: ic_cdk::api::time(),
+            }
+        }
+
+        /// Create a notification message for an asset uploaded event
+        pub fn asset_uploaded(collection: String, key: String, caller: UserId) -> Self {
+            Self {
+                msg_type: "asset_uploaded".to_string(),
+                collection,
+                key,
+                caller: caller.to_string(),
+                timestamp: ic_cdk::api::time(),
+            }
+        }
+
+        /// Create a notification message for an asset deleted event
+        pub fn asset_deleted(collection: String, key: String, caller: UserId) -> Self {
+            Self {
+                msg_type: "asset_deleted".to_string(),
+                collection,
+                key,
+                caller: caller.to_string(),
+                timestamp: ic_cdk::api::time(),
+            }
+        }
+    }
 }

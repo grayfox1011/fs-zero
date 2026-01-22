@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "canisters": {
+    "satellite": {
+      "type": "custom",
+      "wasm": "target/wasm32-unknown-unknown/release/satellite.wasm",
+      "candid": "src/satellite/satellite.did",
+      "remote": {
+        "id": {
+          "ic": "em3zh-5aaaa-aaaal-asvcq-cai"
+        }
+      },
+      "init_deploy_args": [
+        {
+          "controllers": ["ozifh-viclr-rmkl3-ziput-fee7k-oyui4-parjq-iqfn2-luzav-7nian-vqe"]
+        }
+      ]
+    }
+  }
+}

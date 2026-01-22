@@ -54,3 +54,4 @@ junobuild-storage = { path = "./src/libs/storage" }
 junobuild-cdn = { path = "./src/libs/cdn" }
 junobuild-auth = { path = "./src/libs/auth" }
 junobuild-utils = { path = "./src/libs/utils" }
+ic-websocket-cdk = { path = "./packages/ic-websocket-cdk/src/ic-websocket-cdk" }

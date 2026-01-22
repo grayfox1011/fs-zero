@@ -208,6 +208,11 @@ type ListRulesResults = record {
   items : vec record { text; Rule };
   items_length : nat64;
 };
+type WsClientInfo = record {
+  client_key : text;
+  principal : text;
+  subscription_count : nat;
+};
 type Memory = variant { Heap; Stable };
 type MemorySize = record { stable : nat64; heap : nat64 };
 type OpenIdGetDelegationArgs = record {
@@ -447,4 +452,10 @@ service : (InitSatelliteArgs) -> {
   switch_storage_system_memory : () -> ();
   upload_asset_chunk : (UploadChunk) -> (UploadChunkResult);
   upload_proposal_asset_chunk : (UploadChunk) -> (UploadChunkResult);
+  ws_close : (text) -> ();
+  ws_get_gateway_url : () -> (text) query;
+  ws_get_messages : () -> (vec vec nat8) query;
+  ws_message : (text, vec nat8) -> (bool);
+  ws_open : (text, text) -> (bool) query;
+  ws_stats : () -> (vec WsClientInfo) query;
 }

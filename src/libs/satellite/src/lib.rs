@@ -17,6 +17,7 @@ mod rules;
 mod sdk;
 mod types;
 mod user;
+mod ws;
 
 use crate::db::types::config::DbConfig;
 use crate::guards::{
@@ -59,6 +60,11 @@ use junobuild_storage::types::interface::{
 };
 use junobuild_storage::types::state::{AssetAccessToken, FullPath};
 use memory::lifecycle;
+use ic_websocket_cdk::{
+    CanisterWsCloseArguments, CanisterWsCloseResult, CanisterWsGetMessagesArguments,
+    CanisterWsGetMessagesResult, CanisterWsMessageArguments, CanisterWsMessageResult,
+    CanisterWsOpenArguments, CanisterWsOpenResult,
+};
 
 // ============================================================================================
 // These types are made available for use in Serverless Functions.
@@ -519,6 +525,72 @@ pub async fn deposit_cycles(args: DepositCyclesArgs) {
 #[query(guard = "caller_is_controller")]
 pub fn memory_size() -> MemorySize {
     junobuild_shared::segments::utils::memory_size()
+}
+
+// ---------------------------------------------------------
+// WebSocket
+// ---------------------------------------------------------
+
+/// Get WebSocket gateway URL for client connections
+///
+/// Returns the configured gateway URL that clients should use
+/// to establish WebSocket connections.
+///
+/// # Returns
+/// The gateway URL (e.g., "ws://localhost:8081" for local testing)
+#[doc(hidden)]
+#[query]
+pub fn ws_get_gateway_url() -> String {
+    "ws://localhost:8081".to_string()
+}
+
+/// Get statistics about connected WebSocket clients
+///
+/// Returns information about currently connected clients.
+///
+/// # Returns
+/// A vector of tuples containing (client_key, principal, subscription_count)
+#[doc(hidden)]
+#[query]
+pub fn ws_stats() -> Vec<(String, String, usize)> {
+    ws::connected_clients_info()
+}
+
+/// Get pending WebSocket messages for the gateway
+///
+/// This is called by the WebSocket gateway to retrieve messages
+/// that should be sent to connected clients.
+#[doc(hidden)]
+#[query]
+pub fn ws_get_messages(args: CanisterWsGetMessagesArguments) -> CanisterWsGetMessagesResult {
+    ic_websocket_cdk::ws_get_messages(args)
+}
+
+/// WebSocket connection open handler
+///
+/// Called when a new WebSocket client connects.
+#[doc(hidden)]
+#[update]
+pub fn ws_open(args: CanisterWsOpenArguments) -> CanisterWsOpenResult {
+    ic_websocket_cdk::ws_open(args)
+}
+
+/// WebSocket message handler
+///
+/// Called when a message is received from a WebSocket client.
+#[doc(hidden)]
+#[update]
+pub fn ws_message(args: CanisterWsMessageArguments) -> CanisterWsMessageResult {
+    ic_websocket_cdk::ws_message::<()>(args, None)
+}
+
+/// WebSocket connection close handler
+///
+/// Called when a WebSocket client disconnects.
+#[doc(hidden)]
+#[update]
+pub fn ws_close(args: CanisterWsCloseArguments) -> CanisterWsCloseResult {
+    ic_websocket_cdk::ws_close(args)
 }
 
 /// Include the stock Juno satellite features into your Juno application.

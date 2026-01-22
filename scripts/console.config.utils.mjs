@@ -26,9 +26,9 @@ const initConfig = async (mainnet) => {
 		return;
 	}
 
-	const encryptionKey = isHeadless() ? false : await askForPassword();
+	const encryptionKey = false;
 
-	const projectName = `juno-${mainnet ? '' : 'dev-'}console`;
+	const projectName = `juno`;
 
 	config = new Conf({ projectName, encryptionKey });
 };

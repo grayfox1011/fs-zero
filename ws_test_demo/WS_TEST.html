@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ WEBSOCKET TEST - IC-WS-CDK</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+        }
+        h1 {
+            text-shadow: 0 0 10px #0f0;
+            margin-bottom: 20px;
+        }
+        .status {
+            border: 2px solid #0f0;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .status.connected {
+            background: #002200;
+        }
+        .status.disconnected {
+            background: #220000;
+            border-color: #f00;
+        }
+        button {
+            padding: 15px 30px;
+            border: 2px solid #0f0;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+        }
+        button:hover {
+            background: #0f0;
+            color: #000;
+        }
+        .log {
+            border: 2px solid #006600;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-entry.success { color: #00ff00; }
+        .log-entry.error { color: #ff0000; }
+        .log-entry.info { color: #00ffff; }
+        .log-entry.data { color: #ffff00; }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px solid #004400;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ WEBSOCKET TEST - IC-WS-CDK</h1>
+
+    <div class="status disconnected" id="status">
+        ● WEBSOCKET: DISCONNECTED
+    </div>
+
+    <div>
+        <button onclick="connect()">[ CONNECT ]</button>
+        <button onclick="disconnect()">[ DISCONNECT ]</button>
+        <button onclick="sendTestMessage()">[ SEND HELLO ]</button>
+        <button onclick="clearLog()">[ CLEAR LOG ]</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="info">
+        <strong>CONFIG:</strong><br>
+        Canister: l62sy-yx777-77777-aaabq-cai<br>
+        Gateway: ws://127.0.0.1:8081<br>
+        Gateway Principal: 7s3en-pma45-accf7-6m347-wwh5q-ybxzs-jlayw-mmbny-pnixy-wa6jh-mae
+    </div>
+
+    <script>
+        let ws = null;
+
+        const CANISTER_ID = 'l62sy-yx777-77777-aaabq-cai';
+        const GATEWAY_URL = 'ws://127.0.0.1:8081';
+        const GATEWAY_PRINCIPAL = '7s3en-pma45-accf7-6m347-wwh5q-ybxzs-jlayw-mmbny-pnixy-wa6jh-mae';
+
+        function log(msg, type = '') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '● WEBSOCKET: CONNECTED';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '● WEBSOCKET: DISCONNECTED';
+            }
+        }
+
+        async function readBlob(blob) {
+            return new Promise((resolve) => {
+                const reader = new FileReader();
+                reader.onloadend = () => resolve(reader.result);
+                reader.readAsArrayBuffer(blob);
+            });
+        }
+
+        function connect() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected', 'info');
+                return;
+            }
+
+            log(`Connecting to ${GATEWAY_URL}...`, 'info');
+
+            ws = new WebSocket(GATEWAY_URL);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = async () => {
+                log('✓ WebSocket CONNECTED!', 'success');
+                updateStatus(true);
+
+                // Send the IC WebSocket FirstMessage
+                const firstMessage = {
+                    canister_id: CANISTER_ID,
+                    client_principal: null,  // Anonymous
+                    method_name: 'ws_open',
+                    method_args: [],
+                    nonce: Date.now()
+                };
+
+                log('Sending FirstMessage...', 'info');
+                log(`Data: ${JSON.stringify(firstMessage)}`, 'data');
+                ws.send(JSON.stringify(firstMessage));
+            };
+
+            ws.onmessage = async (event) => {
+                let dataStr = '';
+
+                if (event.data instanceof ArrayBuffer) {
+                    dataStr = `ArrayBuffer (${event.data.byteLength} bytes)`;
+                    // Try to decode as text
+                    try {
+                        const decoder = new TextDecoder();
+                        const text = decoder.decode(event.data);
+                        dataStr += ` = "${text}"`;
+                    } catch (e) {
+                        dataStr += ' (binary data)';
+                    }
+                } else if (event.data instanceof Blob) {
+                    const buffer = await readBlob(event.data);
+                    dataStr = `Blob (${buffer.byteLength} bytes)`;
+                    // Try to decode
+                    try {
+                        const decoder = new TextDecoder();
+                        const text = decoder.decode(buffer);
+                        dataStr += ` = "${text}"`;
+                    } catch (e) {
+                        // Show hex dump
+                        const bytes = new Uint8Array(buffer);
+                        const hex = Array.from(bytes.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                        dataStr += ` = [${hex}${bytes.length > 32 ? '...' : ''}]`;
+                    }
+                } else {
+                    dataStr = JSON.stringify(event.data);
+                }
+
+                log(`📨 RECEIVED: ${dataStr}`, 'success');
+            };
+
+            ws.onclose = (event) => {
+                log(`✗ WebSocket DISCONNECTED (code: ${event.code}, reason: "${event.reason || 'none'}")`, 'error');
+                updateStatus(false);
+            };
+
+            ws.onerror = (error) => {
+                log('✗ WebSocket ERROR - check console', 'error');
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function sendTestMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                log('✗ Not connected', 'error');
+                return;
+            }
+
+            const msg = 'subscribe:demo_collection';
+            ws.send(msg);
+            log(`📤 Sent: "${msg}"`, 'info');
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Auto-connect on load
+        window.addEventListener('load', () => {
+            log('═══════════════════════════════════════');
+            log('⚡ WEBSOCKET TEST INITIALIZED');
+            log('═══════════════════════════════════════');
+            log('');
+            log(`Canister: ${CANISTER_ID}`);
+            log(`Gateway: ${GATEWAY_URL}`);
+            log('');
+        });
+    </script>
+</body>
+</html>

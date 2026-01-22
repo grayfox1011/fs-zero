@@ -3,9 +3,10 @@
 use crate::db::types::state::{Doc, DocAssertDelete, DocAssertSet, DocContext, DocUpsert};
 use crate::types::hooks::{
     AssertDeleteDocContext, AssertSetDocContext, OnDeleteDocContext, OnDeleteFilteredDocsContext,
-    OnDeleteManyDocsContext, OnSetDocContext, OnSetManyDocsContext,
+    OnDeleteManyDocsContext, OnSetDocContext, OnSetManyDocsContext, NotificationMessage,
 };
 use crate::HookContext;
+use crate::ws;
 #[allow(unused)]
 use ic_cdk_timers::set_timer;
 use junobuild_collections::constants::db::COLLECTION_LOG_KEY;
@@ -225,4 +226,91 @@ fn is_log_collection(collection: &CollectionKey) -> bool {
 
 fn is_not_log_collection(collection: &CollectionKey) -> bool {
     !is_log_collection(collection)
+}
+
+// ============================================================================================
+// WebSocket Integration
+// ============================================================================================
+// These functions integrate WebSocket broadcasting with the existing hook system.
+// When documents are created, updated, or deleted, notifications are automatically
+// broadcasted to all connected WebSocket clients subscribed to the affected collection.
+
+/// Invoke the on_set_doc hook and broadcast WebSocket notification
+///
+/// This function calls the original hook and then broadcasts a notification
+/// to all connected WebSocket clients.
+#[allow(unused_variables)]
+pub fn invoke_on_set_doc_with_websocket(caller: &UserId, doc: &DocContext<DocUpsert>) {
+    // First, call the original hook
+    invoke_on_set_doc(caller, doc);
+
+    // Then, broadcast via WebSocket
+    let notification = NotificationMessage::doc_set(
+        doc.collection.to_string(),
+        doc.key.to_string(),
+        *caller,
+    );
+
+    ws::broadcast(notification);
+}
+
+/// Invoke the on_delete_doc hook and broadcast WebSocket notification
+///
+/// This function calls the original hook and then broadcasts a notification
+/// to all connected WebSocket clients.
+#[allow(unused_variables)]
+pub fn invoke_on_delete_doc_with_websocket(caller: &UserId, doc: &DocContext<Option<Doc>>) {
+    // First, call the original hook
+    invoke_on_delete_doc(caller, doc);
+
+    // Then, broadcast via WebSocket
+    let notification = NotificationMessage::doc_deleted(
+        doc.collection.to_string(),
+        doc.key.to_string(),
+        *caller,
+    );
+
+    ws::broadcast(notification);
+}
+
+/// Invoke the on_set_many_docs hook and broadcast WebSocket notification
+///
+/// This function calls the original hook and then broadcasts notifications
+/// for each document to all connected WebSocket clients.
+#[allow(unused_variables)]
+pub fn invoke_on_set_many_docs_with_websocket(caller: &UserId, docs: &[DocContext<DocUpsert>]) {
+    // First, call the original hook
+    invoke_on_set_many_docs(caller, docs);
+
+    // Then, broadcast via WebSocket
+    for doc in docs {
+        let notification = NotificationMessage::doc_set(
+            doc.collection.to_string(),
+            doc.key.to_string(),
+            *caller,
+        );
+
+        ws::broadcast(notification);
+    }
+}
+
+/// Invoke the on_delete_many_docs hook and broadcast WebSocket notification
+///
+/// This function calls the original hook and then broadcasts notifications
+/// for each document to all connected WebSocket clients.
+#[allow(unused_variables)]
+pub fn invoke_on_delete_many_docs_with_websocket(caller: &UserId, docs: &[DocContext<Option<Doc>>]) {
+    // First, call the original hook
+    invoke_on_delete_many_docs(caller, docs);
+
+    // Then, broadcast via WebSocket
+    for doc in docs {
+        let notification = NotificationMessage::doc_deleted(
+            doc.collection.to_string(),
+            doc.key.to_string(),
+            *caller,
+        );
+
+        ws::broadcast(notification);
+    }
 }

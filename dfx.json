@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "canisters": {
+    "satellite": {
+      "type": "custom",
+      "wasm": "target/wasm32-unknown-unknown/release/satellite.wasm",
+      "candid": "src/satellite/satellite.did",
+      "build": "",
+      "init_arg": "(record {controllers = vec {principal\"ozifh-viclr-rmkl3-ziput-fee7k-oyui4-parjq-iqfn2-luzav-7nian-vqe\"}})"
+    }
+  }
+}

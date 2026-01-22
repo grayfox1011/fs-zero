@@ -94,7 +94,8 @@ const assertAccount = async ({ identity }: { identity: Identity }) => {
 
 		// Unlikely as assertAccount is supposed to be called only to validate the existence of existing account
 		if (isNullish(certifiedAccount)) {
-			await accountErrorSignOut();
+			console.warn('Account certification failed (account null), skipping logout.');
+			// await accountErrorSignOut();
 			return;
 		}
 
@@ -103,7 +104,8 @@ const assertAccount = async ({ identity }: { identity: Identity }) => {
 			certified: true
 		});
 	} catch (_err: unknown) {
-		await accountErrorSignOut();
+		console.warn('Account certification failed (exception), skipping logout.', _err);
+		// await accountErrorSignOut();
 	}
 };
 

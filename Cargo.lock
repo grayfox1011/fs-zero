@@ -982,6 +982,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "ic-websocket-cdk"
+version = "0.4.2"
+dependencies = [
+ "base64",
+ "candid",
+ "ic-cdk",
+ "ic-cdk-timers",
+ "ic-certification",
+ "serde",
+ "serde_bytes",
+ "serde_cbor",
+ "sha2",
+]
+
+[[package]]
 name = "ic0"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1305,6 +1320,7 @@ dependencies = [
  "ic-cdk-timers",
  "ic-certification",
  "ic-stable-structures 0.7.2",
+ "ic-websocket-cdk",
  "junobuild-auth",
  "junobuild-cdn",
  "junobuild-collections",

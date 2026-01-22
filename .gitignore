@@ -44,3 +44,9 @@ juno.package.json
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# Local development
+.env
+.env.*
+!.env.example
+*.log

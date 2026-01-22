@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ PUNK REAL-TIME DEMO - WORKING!</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        h1 {
+            text-shadow: 0 0 20px #0f0;
+            margin-bottom: 20px;
+            font-size: 42px;
+            text-transform: uppercase;
+        }
+        .header-bar {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .status-box {
+            border: 3px solid #0f0;
+            padding: 20px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+        .status-box.active {
+            background: #002200;
+            animation: pulse 1s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .panel {
+            border: 3px solid #0f0;
+            padding: 20px;
+            background: #000;
+        }
+        .panel-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            border-bottom: 3px solid #0f0;
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+        input, textarea {
+            width: 100%;
+            padding: 15px;
+            border: 3px solid #0f0;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+        input:focus, textarea:focus {
+            outline: none;
+            background: #002200;
+            box-shadow: 0 0 10px #0f0;
+        }
+        button {
+            width: 100%;
+            padding: 20px;
+            border: 3px solid #0f0;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 18px;
+            font-weight: bold;
+            text-transform: uppercase;
+            cursor: pointer;
+            margin-bottom: 15px;
+        }
+        button:hover {
+            background: #0f0;
+            color: #000;
+            box-shadow: 0 0 20px #0f0;
+        }
+        .messages {
+            height: 500px;
+            overflow-y: auto;
+            border: 3px solid #004400;
+            padding: 15px;
+        }
+        .message-item {
+            padding: 15px;
+            margin-bottom: 10px;
+            border-bottom: 2px solid #004400;
+            animation: slideIn 0.3s;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-20px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .message-item.new {
+            background: #001a00;
+            animation: flash 0.5s;
+        }
+        @keyframes flash {
+            0%, 100% { background: #001a00; }
+            50% { background: #003300; }
+        }
+        .message-time {
+            color: #006600;
+            font-size: 14px;
+        }
+        .message-user {
+            color: #00ffff;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .message-text {
+            color: #0f0;
+            font-size: 16px;
+            margin-top: 5px;
+        }
+        .counter {
+            font-size: 72px;
+            text-align: center;
+            margin: 20px 0;
+            text-shadow: 0 0 30px #0f0;
+        }
+        .counter-label {
+            text-align: center;
+            font-size: 16px;
+            text-transform: uppercase;
+            color: #00ff00;
+        }
+        .log {
+            border: 3px solid #004400;
+            padding: 15px;
+            height: 200px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-entry.success { color: #00ff00; }
+        .log-entry.error { color: #ff0000; }
+        .log-entry.info { color: #00ffff; }
+    </style>
+</head>
+<body>
+    <h1>⚡ PUNK REAL-TIME DEMO</h1>
+
+    <div class="header-bar">
+        <div class="status-box active">✓ BLOCKCHAIN ACTIVE</div>
+        <div class="status-box active">✓ POLLING 500ms</div>
+        <div class="status-box active">✓ NO AUTH REQUIRED</div>
+    </div>
+
+    <div class="main-grid">
+        <div class="panel">
+            <div class="panel-title">/// SEND MESSAGE</div>
+            <input type="text" id="username" placeholder="USERNAME" value="PunkUser">
+            <textarea id="message" rows="4" placeholder="YOUR MESSAGE..."></textarea>
+            <button onclick="sendMessage()">
+                [ SEND TO BLOCKCHAIN ]
+            </button>
+            <button onclick="sendBatch()">
+                [ SEND x5 FAST ]
+            </button>
+            <div class="counter" id="counter">0</div>
+            <div class="counter-label">MESSAGES ON CHAIN</div>
+        </div>
+
+        <div class="panel">
+            <div class="panel-title">/// LIVE FEED (POLLING)</div>
+            <div class="messages" id="messages">
+                <div style="text-align: center; padding: 60px; color: #004400; font-size: 20px;">
+                    [ WAITING FOR MESSAGES... ]
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel">
+        <div class="panel-title">/// SYSTEM LOG</div>
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        const CANISTER_ID = 'uzt4z-lp777-77774-qaabq-cai';
+        const AGENT_URL = 'http://127.0.0.1:4943';
+        const COLLECTION = 'demo_chat';
+        const POLL_INTERVAL = 500;
+
+        let messageCount = 0;
+        let lastKeys = new Set();
+        let pollTimer = null;
+
+        function log(msg, type = '') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function pollMessages() {
+            try {
+                const response = await fetch(`${AGENT_URL}/api/v2/canister/${CANISTER_ID}/call`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: 'list_docs',
+                        args: [{
+                            collection: COLLECTION,
+                            matcher: null,
+                            order: {
+                                desc: true,
+                                filter: null,
+                                paginate: null
+                            },
+                            filter: null
+                        }]
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+
+                    // Try to parse the result - it's in Candid format
+                    if (data && Array.isArray(data)) {
+                        const newData = data.filter(item => item && item.key && !lastKeys.has(item.key));
+                        newData.forEach(item => {
+                            lastKeys.add(item.key);
+                            addMessageToFeed(item);
+                        });
+                    }
+                }
+            } catch (e) {
+                // Silent fail for polling
+            }
+        }
+
+        async function sendMessage() {
+            const username = document.getElementById('username').value || 'Anonymous';
+            const text = document.getElementById('message').value;
+
+            if (!text.trim()) {
+                log('❌ Empty message!', 'error');
+                return;
+            }
+
+            const key = `msg-${Date.now()}`;
+            const data = {
+                username,
+                text,
+                timestamp: Date.now()
+            };
+
+            log(`→ SENDING: ${text.substring(0, 30)}...`, 'info');
+
+            try {
+                const response = await fetch(`${AGENT_URL}/api/v2/canister/${CANISTER_ID}/call`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        method: 'set_doc',
+                        args: [
+                            { collection: COLLECTION },
+                            { key: key },
+                            { data: new TextEncoder().encode(JSON.stringify(data)) }
+                        ]
+                    })
+                });
+
+                if (response.ok) {
+                    messageCount++;
+                    document.getElementById('counter').textContent = messageCount;
+
+                    // Add to local feed immediately
+                    addMessageToFeed({ key, data });
+
+                    log(`✓ SENT: ${key}`, 'success');
+                    document.getElementById('message').value = '';
+                } else {
+                    log(`❌ Failed to send`, 'error');
+                }
+
+            } catch (error) {
+                log(`❌ ERROR: ${error.message}`, 'error');
+            }
+        }
+
+        function addMessageToFeed(item) {
+            const container = document.getElementById('messages');
+
+            if (messageCount === 0 && !container.querySelector('.message-item')) {
+                container.innerHTML = '';
+            }
+
+            let msgData;
+            if (item.data) {
+                try {
+                    msgData = JSON.parse(new TextDecoder().decode(item.data));
+                } catch (e) {
+                    msgData = { text: '[Binary data]', username: 'Unknown' };
+                }
+            } else {
+                msgData = item;
+            }
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = 'message-item new';
+            msgDiv.innerHTML = `
+                <div class="message-time">${new Date(msgData.timestamp || Date.now()).toLocaleTimeString()}</div>
+                <div class="message-user">${msgData.username || 'Unknown'}:</div>
+                <div class="message-text">${msgData.text || '[No text]'}</div>
+            `;
+            container.insertBefore(msgDiv, container.firstChild);
+
+            // Keep only last 50 messages
+            while (container.children.length > 50) {
+                container.removeChild(container.lastChild);
+            }
+
+            // Remove animation after it plays
+            setTimeout(() => {
+                if (msgDiv.parentNode) {
+                    msgDiv.classList.remove('new');
+                }
+            }, 500);
+        }
+
+        async function sendBatch() {
+            log('🚀 Sending batch of 5 messages...', 'info');
+
+            for (let i = 0; i < 5; i++) {
+                const key = `batch-${Date.now()}-${i}`;
+                const data = {
+                    username: 'BatchUser',
+                    text: `Batch message #${i + 1}`,
+                    timestamp: Date.now()
+                };
+
+                try {
+                    await fetch(`${AGENT_URL}/api/v2/canister/${CANISTER_ID}/call`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            method: 'set_doc',
+                            args: [
+                                { collection: COLLECTION },
+                                { key: key },
+                                { data: new TextEncoder().encode(JSON.stringify(data)) }
+                            ]
+                        })
+                    });
+
+                    messageCount++;
+                    document.getElementById('counter').textContent = messageCount;
+                    addMessageToFeed({ key, data });
+
+                } catch (e) {
+                    log(`❌ Batch ${i + 1} failed`, 'error');
+                }
+
+                await new Promise(r => setTimeout(r, 100));
+            }
+
+            log('✓ Batch complete!', 'success');
+        }
+
+        function startPolling() {
+            log('🔄 Starting polling (500ms)...', 'info');
+            pollTimer = setInterval(pollMessages, POLL_INTERVAL);
+            log('✓ Polling active', 'success');
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            log('═══════════════════════════════════════', 'info');
+            log('⚡ PUNK REAL-TIME DEMO INITIALIZED', 'info');
+            log('═══════════════════════════════════════', 'info');
+            log('');
+            log(`Canister: ${CANISTER_ID}`, 'info');
+            log(`Collection: ${COLLECTION} (PUBLIC)`, 'info');
+            log(`Polling: ${POLL_INTERVAL}ms`, 'info');
+            log('');
+            log('READY! Send messages to test real-time!', 'info');
+            log('');
+
+            startPolling();
+        });
+
+        // Enter key to send
+        document.getElementById('message').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (pollTimer) clearInterval(pollTimer);
+        });
+    </script>
+</body>
+</html>

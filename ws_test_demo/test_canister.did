@@ -1,0 +1,49 @@
+// WebSocket Test Canister Interface
+// Types matching ic-websocket-cdk v0.4.2
+
+type AppMessage = record { text: text };
+type ClientPrincipal = principal;
+type ClientKey = record {
+    client_principal: ClientPrincipal;
+    client_nonce: nat64;
+};
+type WebsocketMessage = record {
+    client_key: ClientKey;
+    sequence_num: nat64;
+    timestamp: nat64;
+    message: vec nat8;
+};
+type CanisterWsOpenArguments = record {
+    client_nonce: nat64;
+    gateway_principal: principal;
+};
+type CanisterWsOpenResult = variant { Ok: record {}; Err: text };
+type CanisterWsMessageArguments = record {
+    msg: WebsocketMessage;
+};
+type CanisterWsMessageResult = variant { Ok: record {}; Err: text };
+type CanisterWsCloseArguments = record {
+    client_key: ClientKey;
+};
+type CanisterWsCloseResult = variant { Ok: record {}; Err: text };
+type CanisterWsGetMessagesArguments = record {
+    nonce: nat64;
+};
+type CanisterWsGetMessagesResult = record {
+    messages: vec vec nat8;
+    gateway_principal: principal;
+};
+type CanisterSendResult = variant { Ok: record {}; Err: text };
+type CanisterCloseResult = variant { Ok: record {}; Err: text };
+
+service : {
+    get_websocket_principal : () -> (principal);
+    add_test_message : (text) -> (variant { Ok : record {}; Err : text });
+    ws_open : (CanisterWsOpenArguments) -> (CanisterWsOpenResult);
+    ws_message : (CanisterWsMessageArguments, opt AppMessage) -> (CanisterWsMessageResult);
+    ws_close : (CanisterWsCloseArguments) -> (CanisterWsCloseResult);
+    ws_get_messages : (CanisterWsGetMessagesArguments) -> (CanisterWsGetMessagesResult);
+    send : (ClientPrincipal, vec vec nat8) -> (CanisterSendResult);
+    close : (ClientPrincipal) -> (CanisterCloseResult);
+    wipe : () -> ();
+}

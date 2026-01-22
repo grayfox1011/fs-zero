@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ WEBSOCKET + INTERNET IDENTITY</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+        }
+        h1 {
+            text-shadow: 0 0 10px #0f0;
+            margin-bottom: 20px;
+        }
+        .status {
+            border: 2px solid #0f0;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .status.connected {
+            background: #002200;
+        }
+        .status.disconnected {
+            background: #220000;
+            border-color: #f00;
+        }
+        .status.authenticated {
+            background: #002200;
+            border-color: #00ffff;
+            color: #00ffff;
+        }
+        button {
+            padding: 15px 30px;
+            border: 2px solid #0f0;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0f0;
+            color: #000;
+        }
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .log {
+            border: 2px solid #006600;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-entry.success { color: #00ff00; }
+        .log-entry.error { color: #ff0000; }
+        .log-entry.info { color: #00ffff; }
+        .log-entry.data { color: #ffff00; }
+        .info-box {
+            margin-top: 20px;
+            padding: 15px;
+            border: 2px solid #004400;
+        }
+        .principal-display {
+            word-break: break-all;
+            font-size: 12px;
+            color: #00ffff;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ WEBSOCKET + INTERNET IDENTITY</h1>
+
+    <div class="status disconnected" id="authStatus">
+        ● AUTH: NOT AUTHENTICATED
+    </div>
+
+    <div class="status disconnected" id="wsStatus">
+        ● WEBSOCKET: DISCONNECTED
+    </div>
+
+    <div>
+        <button id="authBtn" onclick="authenticate()">[ LOGIN WITH INTERNET IDENTITY ]</button>
+        <button id="connectBtn" onclick="connectWebSocket()" disabled>[ CONNECT WEBSOCKET ]</button>
+        <button onclick="disconnectWebSocket()">[ DISCONNECT ]</button>
+        <button onclick="clearLog()">[ CLEAR LOG ]</button>
+    </div>
+
+    <div class="info-box" id="principalBox" style="display: none;">
+        <strong>Your Principal:</strong><br>
+        <span class="principal-display" id="principalDisplay">Loading...</span>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="info-box">
+        <strong>CONFIG:</strong><br>
+        Canister: l62sy-yx777-77777-aaabq-cai<br>
+        Gateway: ws://127.0.0.1:8081<br>
+        Gateway Principal: 7s3en-pma45-accf7-6m347-wwh5q-ybxzs-jlayw-mmbny-pnixy-wa6jh-mae
+    </div>
+
+    <script type="module">
+        import { authClient } from 'https://cdn.jsdelivr.net/npm/@dfinity/identity@latest/lib/esm/index.js';
+
+        let ws = null;
+        let principal = null;
+        let isAuthenticated = false;
+
+        const CANISTER_ID = 'l62sy-yx777-77777-aaabq-cai';
+        const GATEWAY_URL = 'ws://127.0.0.1:8081';
+        const GATEWAY_PRINCIPAL = '7s3en-pma45-accf7-6m347-wwh5q-ybxzs-jlayw-mmbny-pnixy-wa6jh-mae';
+        const II_CANISTER_ID = 'll5dv-z7777-77777-aaaca-cai'; // Local II
+
+        function log(msg, type = '') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateAuthStatus(authenticated, principalText = '') {
+            const statusDiv = document.getElementById('authStatus');
+            if (authenticated) {
+                statusDiv.className = 'status authenticated';
+                statusDiv.textContent = '● AUTH: AUTHENTICATED';
+                document.getElementById('principalBox').style.display = 'block';
+                document.getElementById('principalDisplay').textContent = principalText;
+                document.getElementById('connectBtn').disabled = false;
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '● AUTH: NOT AUTHENTICATED';
+                document.getElementById('principalBox').style.display = 'none';
+                document.getElementById('connectBtn').disabled = true;
+            }
+        }
+
+        function updateWsStatus(connected) {
+            const statusDiv = document.getElementById('wsStatus');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '● WEBSOCKET: CONNECTED';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '● WEBSOCKET: DISCONNECTED';
+            }
+        }
+
+        async function authenticate() {
+            log('🔐 Starting Internet Identity authentication...', 'info');
+
+            try {
+                // Create a new identity
+                const identity = await authClient.create({
+                    identityProvider: `http://${II_CANISTER_ID}.localhost:4943`,
+                });
+
+                // Get the principal
+                principal = identity.getPrincipal();
+                isAuthenticated = true;
+
+                const principalText = principal.toText();
+                log(`✓ Authenticated! Principal: ${principalText}`, 'success');
+                updateAuthStatus(true, principalText);
+
+            } catch (error) {
+                log(`✗ Authentication failed: ${error.message}`, 'error');
+                console.error('Auth error:', error);
+            }
+        }
+
+        async function connectWebSocket() {
+            if (!principal || !isAuthenticated) {
+                log('✗ Please authenticate first!', 'error');
+                return;
+            }
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected', 'info');
+                return;
+            }
+
+            log(`Connecting to ${GATEWAY_URL}...`, 'info');
+
+            ws = new WebSocket(GATEWAY_URL);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = async () => {
+                log('✓ WebSocket CONNECTED!', 'success');
+                updateWsStatus(true);
+
+                // Send the IC WebSocket FirstMessage with our principal
+                const firstMessage = {
+                    canister_id: CANISTER_ID,
+                    client_principal: principal.toText(),
+                    method_name: 'ws_open',
+                    method_args: [{
+                        client_nonce: Date.now(),
+                        gateway_principal: GATEWAY_PRINCIPAL
+                    }],
+                    nonce: Date.now()
+                };
+
+                log('Sending FirstMessage with principal...', 'info');
+                log(`Client principal: ${principal.toText()}`, 'data');
+                ws.send(JSON.stringify(firstMessage));
+            };
+
+            ws.onmessage = async (event) => {
+                let dataStr = '';
+
+                if (event.data instanceof ArrayBuffer) {
+                    dataStr = `ArrayBuffer (${event.data.byteLength} bytes)`;
+                    try {
+                        const decoder = new TextDecoder();
+                        const text = decoder.decode(event.data);
+                        dataStr += ` = "${text}"`;
+                    } catch (e) {
+                        dataStr += ' (binary data)';
+                    }
+                } else {
+                    dataStr = JSON.stringify(event.data);
+                }
+
+                log(`📨 RECEIVED: ${dataStr}`, 'success');
+            };
+
+            ws.onclose = (event) => {
+                log(`✗ WebSocket DISCONNECTED (code: ${event.code}, reason: "${event.reason || 'none'}")`, 'error');
+                updateWsStatus(false);
+            };
+
+            ws.onerror = (error) => {
+                log('✗ WebSocket ERROR - check console', 'error');
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function disconnectWebSocket() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            log('═══════════════════════════════════════');
+            log('⚡ WEBSOCKET + II DEMO INITIALIZED');
+            log('═══════════════════════════════════════');
+            log('');
+            log(`Canister: ${CANISTER_ID}`);
+            log(`Gateway: ${GATEWAY_URL}`);
+            log(`II Canister: ${II_CANISTER_ID}`);
+            log('');
+            log('STEP 1: Click [LOGIN WITH INTERNET IDENTITY]');
+            log('STEP 2: Click [CONNECT WEBSOCKET]');
+            log('');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚡ WEBSOCKET + II (SIMPLE)</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Courier New', monospace;
+            background: #000;
+            color: #0f0;
+            padding: 20px;
+        }
+        h1 {
+            text-shadow: 0 0 10px #0f0;
+            margin-bottom: 20px;
+        }
+        .status {
+            border: 2px solid #0f0;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        .status.connected {
+            background: #002200;
+        }
+        .status.disconnected {
+            background: #220000;
+            border-color: #f00;
+        }
+        button {
+            padding: 15px 30px;
+            border: 2px solid #0f0;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0f0;
+            color: #000;
+        }
+        .log {
+            border: 2px solid #006600;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-size: 14px;
+        }
+        .log-entry {
+            margin: 5px 0;
+        }
+        .log-entry.success { color: #00ff00; }
+        .log-entry.error { color: #ff0000; }
+        .log-entry.info { color: #00ffff; }
+        .log-entry.data { color: #ffff00; }
+        input {
+            padding: 15px;
+            border: 2px solid #0f0;
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            width: 100%;
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>⚡ WEBSOCKET + II (SIMPLE)</h1>
+
+    <div class="status disconnected" id="wsStatus">
+        ● WEBSOCKET: DISCONNECTED
+    </div>
+
+    <div>
+        <input type="text" id="principalInput" placeholder="Enter your principal here (get from II)">
+        <button onclick="connectWebSocket()">[ CONNECT WEBSOCKET ]</button>
+        <button onclick="openII()">[ OPEN INTERNET IDENTITY ]</button>
+        <button onclick="clearLog()">[ CLEAR LOG ]</button>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="status">
+        <strong>INSTRUCTIONS:</strong><br>
+        1. Click [OPEN INTERNET IDENTITY] - opens II in new tab<br>
+        2. Login/Register with II<br>
+        3. Copy your principal from II<br>
+        4. Paste it in the input box above<br>
+        5. Click [CONNECT WEBSOCKET]
+    </div>
+
+    <script>
+        let ws = null;
+        let principal = null;
+
+        const CANISTER_ID = 'l62sy-yx777-77777-aaabq-cai';
+        const GATEWAY_URL = 'ws://127.0.0.1:8081';
+        const GATEWAY_PRINCIPAL = '7s3en-pma45-accf7-6m347-wwh5q-ybxzs-jlayw-mmbny-pnixy-wa6jh-mae';
+        const II_CANISTER_ID = 'll5dv-z7777-77777-aaaca-cai';
+        const II_URL = `http://${II_CANISTER_ID}.localhost:4943`;
+
+        function log(msg, type = '') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateWsStatus(connected) {
+            const statusDiv = document.getElementById('wsStatus');
+            if (connected) {
+                statusDiv.className = 'status connected';
+                statusDiv.textContent = '● WEBSOCKET: CONNECTED';
+            } else {
+                statusDiv.className = 'status disconnected';
+                statusDiv.textContent = '● WEBSOCKET: DISCONNECTED';
+            }
+        }
+
+        function openII() {
+            window.open(II_URL, '_blank');
+        }
+
+        function connectWebSocket() {
+            const principalText = document.getElementById('principalInput').value.trim();
+
+            if (!principalText) {
+                log('✗ Please enter a principal first!', 'error');
+                return;
+            }
+
+            // Validate principal format
+            if (!principalText.match(/^[a-z0-9-]+-([a-z0-9-]+)$/)) {
+                log('✗ Invalid principal format!', 'error');
+                return;
+            }
+
+            principal = principalText;
+            log(`Using principal: ${principal}`, 'info');
+
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                log('Already connected', 'info');
+                return;
+            }
+
+            log(`Connecting to ${GATEWAY_URL}...`, 'info');
+
+            ws = new WebSocket(GATEWAY_URL);
+            ws.binaryType = 'arraybuffer';
+
+            ws.onopen = async () => {
+                log('✓ WebSocket CONNECTED!', 'success');
+                updateWsStatus(true);
+
+                // Send the IC WebSocket FirstMessage with our principal
+                const firstMessage = {
+                    canister_id: CANISTER_ID,
+                    client_principal: principal,
+                    method_name: 'ws_open',
+                    method_args: [{
+                        client_nonce: Date.now(),
+                        gateway_principal: GATEWAY_PRINCIPAL
+                    }],
+                    nonce: Date.now()
+                };
+
+                log('Sending FirstMessage with principal...', 'info');
+                ws.send(JSON.stringify(firstMessage));
+            };
+
+            ws.onmessage = async (event) => {
+                let dataStr = '';
+
+                if (event.data instanceof ArrayBuffer) {
+                    dataStr = `ArrayBuffer (${event.data.byteLength} bytes)`;
+                    try {
+                        const decoder = new TextDecoder();
+                        const text = decoder.decode(event.data);
+                        dataStr += ` = "${text}"`;
+                    } catch (e) {
+                        // Show hex dump
+                        const bytes = new Uint8Array(event.data);
+                        const hex = Array.from(bytes.slice(0, 32)).map(b => b.toString(16).padStart(2, '0')).join(' ');
+                        dataStr += ` = [${hex}${bytes.length > 32 ? '...' : ''}]`;
+                    }
+                } else {
+                    dataStr = JSON.stringify(event.data);
+                }
+
+                log(`📨 RECEIVED: ${dataStr}`, 'success');
+            };
+
+            ws.onclose = (event) => {
+                log(`✗ WebSocket DISCONNECTED (code: ${event.code}, reason: "${event.reason || 'none'}")`, 'error');
+                updateWsStatus(false);
+            };
+
+            ws.onerror = (error) => {
+                log('✗ WebSocket ERROR', 'error');
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '';
+        }
+
+        // Initialize
+        window.addEventListener('load', () => {
+            log('═══════════════════════════════════════');
+            log('⚡ WEBSOCKET + II DEMO (SIMPLE)');
+            log('═══════════════════════════════════════');
+            log('');
+            log(`Canister: ${CANISTER_ID}`);
+            log(`Gateway: ${GATEWAY_URL}`);
+            log(`II URL: ${II_URL}`);
+            log('');
+            log('READY! Follow instructions above.');
+            log('');
+        });
+    </script>
+</body>
+</html>

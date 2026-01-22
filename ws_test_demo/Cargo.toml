@@ -1,0 +1,16 @@
+[workspace]
+
+[package]
+name = "ws_test_canister"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+candid = "0.10"
+ic-cdk = "0.19"
+ic-cdk-macros = "0.19"
+serde = { version = "1.0", features = ["derive"] }
+ic-websocket-cdk = { path = "../packages/ic-websocket-cdk/src/ic-websocket-cdk" }
