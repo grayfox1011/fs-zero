@@ -1,109 +1,131 @@
-<div align="center" style="display:flex;flex-direction:column;">
-  <a href="https://juno.build/">
-    <img src="https://github.com/junobuild/juno/raw/main/src/frontend/static/images/juno_logo.png" width="100%" alt="Juno logo" role="presentation"/>
-  </a>
-</div>
+# FS-Zero (File System Zero)
 
-<br />
+> **Zero Latency. Zero Censorship. Zero Central Points of Failure.**
 
-<p align="center">
-  <a href="https://github.com/junobuild/juno"><img alt="GitHub Actions Workflow Status" src="https://img.shields.io/github/actions/workflow/status/junobuild/juno/release.yml?style=flat-square"></a>
-  <a href="https://github.com/junobuild/juno"><img src="https://img.shields.io/github/last-commit/junobuild/juno/main?commit&style=flat-square" alt="Last Commit" /></a>
-  <a href="https://discord.gg/wHZ57Z2RAG"><img src="https://dcbadge.limes.pink/api/server/https://discord.gg/wHZ57Z2RAG?style=flat-square" alt="Discord" /></a>
-</p>
+[![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust)](https://www.rust-lang.org/)
+[![ICP](https://img.shields.io/badge/Internet__Computer-Canister-blue?logo=dfinity)](https://internetcomputer.org/)
+[![Flux](https://img.shields.io/badge/Powered__by-Flux-green)](https://runonflux.io/)
+[![License](https://img.shields.io/badge/License-MIT-lightgrey)](LICENSE)
 
-## ⭐️ Description
+**FS-Zero** is a decentralized, real-time data protocol designed to shatter the limitations of traditional blockchain architectures. 
+It abandons the legacy *polling-based* model (slow, expensive, and blind) for a **WebSocket Push-Native** architecture, orchestrated through a hybrid infrastructure utilizing the **Internet Computer (ICP)** for logic/storage and the **Flux Network** for transport resilience.
 
-[Juno] is an open-source serverless platform for hosting static websites, building web applications, and running serverless functions with the privacy and control of self-hosting.
+---
 
-It provides a familiar cloud experience with strong security and zero operational complexity. Each project runs in its own WASM container, fully owned and controlled by you.
+## 🏗 Architecture Overview
 
-Think of it as **Vercel + Firebase + Self-Hosting** - without the compromises.
+FS-Zero solves the "Decentralized Database Trilemma": **Speed (Real-time)**, **Cost**, and **Persistence**.
 
-- 🔑 Authentication [[Docs](https://juno.build/docs/build/authentication)]
-- 📦 Datastore [[Docs](https://juno.build/docs/build/datastore)]
-- 📂 File Storage [[Docs](https://juno.build/docs/build/storage)]
-- 🌐 Hosting [[Docs](https://juno.build/docs/build/hosting)]
-- ⚙️ Serverless Functions (Rust & TypeScript) [[Docs](https://juno.build/docs/build/functions)]
-- 📊 Analytics [[Docs](https://juno.build/docs/build/analytics)]
-- 👀 Monitoring [[Docs](https://juno.build/docs/management/monitoring)]
-- 💾 Snapshots [[Docs](https://juno.build/docs/management/snapshots)]
+```mermaid
+graph TD
+    User((React Client))
+    
+    subgraph "The Shield (Flux Network)"
+        FluxLB[Flux Load Balancer]
+        FluxNodes[Flux WebSocket Gateway Nodes]
+    end
 
-<br />
+    subgraph "The Core (ICP Canister)"
+        WS[Rust WebSocket Handler]
+        Engine[FS-Zero Engine]
+        ICQL[ICQL Storage (Stable Memory)]
+    end
 
-![A screenshot of the Juno Console](./src/frontend/static/images/console_screenshot.png)
-
-<br />
-
-## ⚡️ Why Juno?
-
-- **Zero DevOps** - No servers to manage, no infrastructure to maintain
-- **True Ownership** - Your code, data, and infrastructure are fully yours
-- **Local-First Development** - Full production-like emulator for rapid iteration
-
-## 🚀 Quick Start
-
-```typescript
-// Initialize Juno
-import { initSatellite } from '@junobuild/core';
-await initSatellite();
-
-// Store data
-import { setDoc } from '@junobuild/core';
-await setDoc({
-	collection: 'posts',
-	doc: {
-		key: 'my-post',
-		data: { title: 'Hello Juno!' }
-	}
-});
+    User -- "WebSocket Secure (WSS)" --> FluxLB
+    FluxLB --> FluxNodes
+    FluxNodes -- "Tunneled Request" --> WS
+    WS -- "Direct Push" --> Engine
+    Engine <--> ICQL
 ```
 
-## 🚢 Deploy
+## 🚀 Core Features
 
-Deploy to production with a single command:
+### 1. WebSocket-First (Kill the Polling)
+Standard ICP architectures suffer from a "blind spot" of 2-5 seconds due to consensus block time. Aggressive polling (e.g., every 500ms) burns cycles and creates bottlenecks.
 
+**The FS-Zero Solution:** A persistent bidirectional tunnel. The Canister notifies the client of state changes in milliseconds, preventing Race Conditions and Lost Updates in multi-user environments.
+
+### 2. Flux Gateway Integration (Infrastructure Shield)
+Direct HTTP Outcalls on ICP are computationally expensive and expose subnet IPs to potential external bans. FS-Zero leverages Flux Nodes as a decentralized shield and relay:
+*   **IP Masking:** Protects the ICP Subnet from external rate-limiting or IP bans.
+*   **High Availability:** If a Flux Node goes down, the Load Balancer automatically reroutes traffic.
+*   **Cost Arbitrage:** Offloads TCP connection management to Flux (fixed cost), keeping ICP focused solely on critical business logic (variable cost).
+
+### 3. ICQL Storage Engine
+FS-Zero does not use a simple Key-Value store. It implements ICQL, a custom engine inspired by Document Stores (MongoDB) but optimized for WASM memory limits:
+*   **Heap Indexing:** Lightweight indexes live in the Heap for instant query resolution.
+*   **Stable Storage Data:** Heavy documents reside in Stable Memory (persistent and cheap).
+*   **Atomic Journals (WAL):** Guarantees data integrity even in case of canister panic or upgrade.
+
+---
+
+## 🛠 Tech Stack
+
+*   **Language:** Rust (Target wasm32-unknown-unknown)
+*   **Protocol:** WebSocket (via custom `ic-websocket-cdk` implementation)
+*   **Storage:** Stable Structures / Juno-based logic
+*   **Infrastructure:** FluxOS (Dockerized Gateway)
+
+---
+
+## ⚡ Quick Start
+
+### Prerequisites
+*   Rust & Cargo
+*   DFX SDK
+*   Docker (for local Gateway testing)
+
+### 1. Clone & Setup
 ```bash
-# Deploy your frontend
-juno hosting deploy
-
-# Deploy your serverless functions
-juno functions publish
+git clone https://github.com/grayfox1011/fs-zero.git
+cd fs-zero
 ```
 
-Or integrate with GitHub Actions → [Setup CI/CD](https://juno.build/docs/guides/github-actions)
-
-## 💁‍♂️️ Links & Resources
-
-Here are some useful links:
-
-- Looking to get started? Check out the [Guides & Examples](https://juno.build/docs/category/guides-and-examples) for step-by-step tutorials and sample code.
-- Explore the full [documentation](https://juno.build) for in-depth details on using and configuring Juno.
-- See the [HACKING](HACKING.md) document for instructions on running and developing Juno locally.
-
-## 🖥️ Bootstrap
-
-Planning to build a website, blog, or web application? Start quickly by scaffolding a new project using a template.
-
+### 2. Local Deploy (ICP Replica)
+Start the local ICP environment:
 ```bash
-# with npm
-npm create juno@latest
-# with pnpm
-pnpm create juno
-# with yarn
-yarn create juno
+dfx start --clean --background
+```
+Deploy the Backend Canister:
+```bash
+dfx deploy
 ```
 
-## 🎯 Live Examples
+### 3. Gateway Setup (Flux Simulation)
+To test WebSockets locally without the live Flux network:
+```bash
+# Run the local gateway integration (example path)
+cd ws_test_demo && cargo run
+```
 
-Check out the [showcase](https://juno.build/showcase).
+---
 
-## 🧑‍🤝‍🧑 Community
+## 🧠 Philosophy: Why "FS-Zero"?
 
-Have questions, comments, or feedback? Join our [Discord](https://discord.gg/wHZ57Z2RAG) or [OpenChat](https://oc.app/community/vxgpi-nqaaa-aaaar-ar4lq-cai/?ref=xanzv-uaaaa-aaaaf-aneba-cai).
+*   **Zero Latency:** Information must flow instantly.
+*   **Zero Trust:** No central server holds the truth. Truth is encrypted on-chain.
+*   **Zero Censorship:** The infrastructure is distributed across multiple jurisdictions and independent nodes.
 
-## 💬 Contact
+> "We don't ask for data. We listen to the truth."
 
-Find us on X/Twitter at [@junobuild](https://twitter.com/junobuild) or email us at [hi@juno.build](mailto://hi@juno.build).
+---
 
-[juno]: https://juno.build
+## 🗺 Roadmap
+
+- [x] **Core:** Rust WebSocket Implementation
+- [x] **Storage:** ICQL Engine (Indexing & Relations)
+- [x] **Concurrency:** Atomic Transaction & Journaling
+- [ ] **Infrastructure:** Flux Docker Container Auto-Deploy
+- [ ] **Client:** React/Next.js SDK (`npm install fs-zero-client`)
+
+---
+
+## 🤝 Contributing
+
+Pull Requests are welcome, but warning: this is not a standard CRUD app. Every line of code must respect **Memory Efficiency (WASM Limits)** and **Security First** principles.
+
+---
+
+## 📄 License
+
+Distributed under the MIT License. See `LICENSE` for more information.
