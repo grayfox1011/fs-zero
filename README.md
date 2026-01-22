@@ -28,7 +28,7 @@ graph TD
     subgraph "The Core (ICP Canister)"
         WS[Rust WebSocket Handler]
         Engine[FS-Zero Engine]
-        ICQL[ICQL Storage (Stable Memory)]
+        ICQL["ICQL Storage (Stable Memory)"]
     end
 
     User -- "WebSocket Secure (WSS)" --> FluxLB
