@@ -20,22 +20,28 @@ FS-Zero solves the "Decentralized Database Trilemma": **Speed (Real-time)**, **C
 graph TD
     User((React Client))
     
-    subgraph "The Shield (Flux Network)"
-        FluxLB[Flux Load Balancer]
-        FluxNodes[Flux WebSocket Gateway Nodes]
+    subgraph Infrastructure ["🛡️ The Shield (Flux Network)"]
+        FluxLB[Load Balancer]
+        FluxNodes[WS Gateway Nodes]
     end
 
-    subgraph "The Core (ICP Canister)"
-        WS[Rust WebSocket Handler]
+    subgraph Canister ["🧠 The Core (ICP Canister)"]
+        WS[WebSocket Handler]
         Engine[FS-Zero Engine]
-        ICQL["ICQL Storage (Stable Memory)"]
+        ICQL[("ICQL Storage<br/>(Stable Memory)")]
     end
 
-    User -- "WebSocket Secure (WSS)" --> FluxLB
+    %% Connections
+    User -- "WSS Secure" --> FluxLB
     FluxLB --> FluxNodes
     FluxNodes -- "Tunneled Request" --> WS
-    WS -- "Direct Push" --> Engine
+    WS -- "Push Event" --> Engine
     Engine <--> ICQL
+    
+    %% Styling
+    style Infrastructure fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    style Canister fill:#fff3e0,stroke:#ff6f00,stroke-width:2px
+    style ICQL fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
 ```
 
 ## 🚀 Core Features
